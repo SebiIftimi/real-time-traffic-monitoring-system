@@ -100,3 +100,12 @@ This implementation ensures a robust and responsive system capable of handling n
 - **Semaphore** `sem_monitoring`: Used to synchronize the monitoring task with the entry and exit tasks from the tunnel. After a vehicle enters or exits, this semaphore can be signaled to update the display on the LCD with the current number of vehicles.
 - **Semaphore** `sem_turnOnLED`: Used to synchronize the operation of lighting the LEDs with the entry or exit of a vehicle from the tunnel.
 - **Mutex** `mutex_panic`: Used for accessing the `Panic` variable.
+
+**Components Used for Implementation:**
+
+- **5 green LEDs**: Each LED lights up when a vehicle enters the tunnel and turns off when it exits.
+- **1 red LED**: Indicates that the maximum number of vehicles has been reached in the tunnel or that the tunnel entrance has been blocked by the operator.
+- **1 yellow LED**: Associated with the panic button to indicate activation.
+- **Panic Button**: Used to signal emergencies.
+- **200 ohm resistors**: Used to ensure proper current flow to the LEDs.
+- 1602 IIC/I2C LCD screen: Displays the current number of vehicles in the tunnel.
