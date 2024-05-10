@@ -55,8 +55,33 @@ The application is divided into several tasks corresponding to the different ent
     - This task continuously monitors the state of the panic button. When the button is pressed, it signals an emergency by notifying the 'Entry' task to block the tunnel entrance and informing the 'Exit' task to unlock the exit. This ensures that vehicles inside the tunnel can evacuate quickly and safely in an emergency.
 
 
+# Defining the Solution for Implementation
 
+The solution has been implemented on the Debian Xenomai Linux platform, utilizing the C/POSIX API. This environment was chosen for its comprehensive set of synchronization and communication mechanisms between tasks, such as generalized semaphores, mutexes, timers, and conditional variables. These tools are crucial for handling the complexities of real-time system operation within the tunnel simulation.
 
+In this program, threads are used to simulate tunnel operations instead of processes, as threads allow easier sharing of resources, simpler and more efficient communication, and faster execution speeds.
+
+To ensure the correct functioning of the application and to address as many possible operational scenarios of the tunnel as possible, the following mechanisms have been employed:
+
+- **Semaphore `semafor_entry`** with an initial value of 5, to track the number of vehicles that can enter the tunnel. Any attempt by a vehicle to enter the tunnel is blocked by this semaphore if the maximum number of vehicles is reached.
+  
+- **Semaphore `semafor_exit`** with an initial value of 0, used by 'Entry' to notify 'Exit' that a vehicle has entered the tunnel. Initializing this semaphore with 0 ensures that vehicles cannot exit the tunnel before entering.
+  
+- **Semaphore `semafor_monitoring`** with an initial value of 0, used by 'Entry' and 'Exit' to notify 'Monitoring' when a vehicle enters or exits the tunnel.
+  
+- **Mutex `mutex_nr_m`** locked/unlocked by: 'Entry', when checking entry conditions to increment the `nr_cars` variable; 'Exit', when checking exit conditions to decrement the `nr_cars` variable; 'Monitoring', when verifying the number of vehicles in the tunnel to allow or block entry depending on whether the maximum number is reached; 'Panic Button', when the panic button is pressed and vehicles need to exit the tunnel.
+  
+- **Mutex `mutex_safty`** locked/unlocked by: 'Smoke' and 'Gas' when detecting smoke or gas in the tunnel to modify the `safety` variable, and 'Entry', when checking entry conditions.
+  
+- **Mutex `mutex_block_entry`** locked/unlocked by: 'Panic Button', when the panic button is pressed to modify the `block_entry` variable, and by 'Entry' when reading this variable to check the entry conditions.
+  
+- **Mutex `mutex_block_exit`** locked/unlocked by: 'Panic Button', when the panic button is pressed to modify the `block_exit` variable, and by 'Exit' when reading this variable to check the exit conditions.
+  
+- **Conditional variables `condvar_entry` and `condvar_exit`** used to restrict the operation of 'Entry' and 'Exit' tasks when the panic button is pressed. These are used in conjunction with `mutex_block_entry` and `mutex_block_exit`.
+  
+- **A timer** that triggers the panic button; when the issue signaled by the panic button is resolved, the timer is reset.
+
+This implementation ensures a robust and responsive system capable of handling normal operations as well as emergency scenarios within the tunnel environment.
 
 
 
