@@ -55,7 +55,7 @@ The application is divided into several tasks corresponding to the different ent
 
 # Defining the Solution for Implementation
 
-# 1. Linux-Xenomai/ POSIX
+   # 1. Linux-Xenomai/ POSIX
 
 The solution has been implemented on the Debian Xenomai Linux platform, utilizing the C/POSIX API. This environment was chosen for its comprehensive set of synchronization and communication mechanisms between tasks, such as generalized semaphores, mutexes, timers, and conditional variables. These tools are crucial for handling the complexities of real-time system operation within the tunnel simulation.
 
@@ -83,11 +83,20 @@ To ensure the correct functioning of the application and to address as many poss
 
 This implementation ensures a robust and responsive system capable of handling normal operations as well as emergency scenarios within the tunnel environment.
 
+# 2. Arduino/ FreeRTOS.h
 
+**The solution was implemented using the Arduino Mega 2560 board.**
 
+**Libraries Used for Implementation:**
 
+- **Arduino_FreeRTOS.h**: The primary library for FreeRTOS on Arduino, enabling the simultaneous execution of multiple tasks (threads), and task creation.
+- **semphr.h**: Provides functionalities for manipulating semaphores and mutexes.
+- **Wire.h**: Used for I2C communication.
+- **LiquidCrystal_I2C.h**: Used to communicate with and control the LCD screen.
 
+**Mechanisms Chosen to Ensure Correct Application Functioning:**
 
-
-
-
+- **Semaphore** `sem_entry` and `sem_exit`: These ensure that there are no conflicts or race conditions when multiple tasks attempt - to modify the state of the entrance and exit.
+- **Semaphore** `sem_monitoring`: Used to synchronize the monitoring task with the entry and exit tasks from the tunnel. After a vehicle enters or exits, this semaphore can be signaled to update the display on the LCD with the current number of vehicles.
+- **Semaphore** `sem_turnOnLED`: Used to synchronize the operation of lighting the LEDs with the entry or exit of a vehicle from the tunnel.
+- **Mutex** `mutex_panic`: Used for accessing the `Panic` variable.
