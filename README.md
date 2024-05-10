@@ -55,6 +55,8 @@ The application is divided into several tasks corresponding to the different ent
 
 # Defining the Solution for Implementation
 
+# 1. Linux-Xenomai/ POSIX
+
 The solution has been implemented on the Debian Xenomai Linux platform, utilizing the C/POSIX API. This environment was chosen for its comprehensive set of synchronization and communication mechanisms between tasks, such as generalized semaphores, mutexes, timers, and conditional variables. These tools are crucial for handling the complexities of real-time system operation within the tunnel simulation.
 
 In this program, threads are used to simulate tunnel operations instead of processes, as threads allow easier sharing of resources, simpler and more efficient communication, and faster execution speeds.
