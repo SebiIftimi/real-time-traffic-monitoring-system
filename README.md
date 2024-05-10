@@ -109,3 +109,12 @@ This implementation ensures a robust and responsive system capable of handling n
 - **Panic Button**: Used to signal emergencies.
 - **200 ohm resistors**: Used to ensure proper current flow to the LEDs.
 - 1602 IIC/I2C LCD screen: Displays the current number of vehicles in the tunnel.
+
+# **Task Organization Chart for Linu-Xenomai/ POSIX**
+![patr-6](https://github.com/SebiIftimi/real-time-traffic-monitoring-system/assets/104670681/28a1974c-203c-4036-a114-c525f687be21)
+
+# **Task Organization Chart for Arduino**
+
+![organigrama_arduino](https://github.com/SebiIftimi/real-time-traffic-monitoring-system/assets/104670681/59375446-084a-41e9-b674-f6087aeb17ad)
+
+
