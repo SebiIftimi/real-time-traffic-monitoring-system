@@ -109,8 +109,10 @@ This implementation ensures a robust and responsive system capable of handling n
 # **Task Organization Chart for Linu-Xenomai/ POSIX**
 ![patr-6](https://github.com/SebiIftimi/real-time-traffic-monitoring-system/assets/104670681/28a1974c-203c-4036-a114-c525f687be21)
 
+
 # **Task Organization Chart for Arduino**
 
 ![organigrama_arduino](https://github.com/SebiIftimi/real-time-traffic-monitoring-system/assets/104670681/59375446-084a-41e9-b674-f6087aeb17ad)
 
 
+# Check out a demonstration of the application [here](https://www.youtube.com/watch?v=13D0b_DAEVg).
