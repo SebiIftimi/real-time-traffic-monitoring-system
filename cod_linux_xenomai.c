@@ -6,285 +6,288 @@
 #include <time.h>
 
 
-int nr_masini = 0; // nr. masini
-int siguranta = 1; // 1 - tunel sigur, 0, nu e sigur
-int gaz_detectat = 0;  // 0 - nu este detectat gaz, 1 - detectat
-int blocare_intrare = 0; // 0 - permite intrarea, 1 - nu permite intrarea
-int blocare_iesire = 0; // 0 - permite iesirea, 1 - nu permite intrarea
+int num_cars = 0; // number of cars
+int safety = 1; // 1 - tunnel is safe, 0 - tunnel is not safe
+int gas_detected = 0;  // 0 - gas not detected, 1 - gas detected
+int block_entry = 0; // 0 - entry allowed, 1 - entry not allowed
+int block_exit = 0; // 0 - exit allowed, 1 - exit not allowed
 
-// Declarare semafoare, mutexuri si variabile conditionale
-sem_t semafor_intrare, semafor_iesire, semafor_monitorizare;
-pthread_mutex_t mutex_nr_m, mutex_siguranta, mutex_blocare_intrare, mutex_blocare_iesire;
-pthread_cond_t condvar_intrare, condvar_iesire;
+// Declare semaphores, mutexes, and condition variables
+sem_t sem_entry, sem_exit, sem_monitoring;
+pthread_mutex_t mutex_num_cars, mutex_safety, mutex_block_entry, mutex_block_exit;
+pthread_cond_t condvar_entry, condvar_exit;
 
-//Thread-ul asociat task-ului intrare
-void *intrare(void *arg) {
-    pthread_mutex_lock(&mutex_blocare_intrare);
-    // Daca intrarea este blocata, thread-ul asteapta pana cand se deblocheaza
-    while (blocare_intrare) {
-        // Elibereaza thread-ul cand este notificat de ondvar_intrare
-        pthread_cond_wait(&condvar_intrare, &mutex_blocare_intrare);
+// Thread associated with the entry task
+void *entry(void *arg) {
+    pthread_mutex_lock(&mutex_block_entry);
+    // If entry is blocked, the thread waits until it is unblocked
+    while (block_entry) {
+        // Release the thread when notified by condvar_entry
+        pthread_cond_wait(&condvar_entry, &mutex_block_entry);
     }
-    pthread_mutex_unlock(&mutex_blocare_intrare);
+    pthread_mutex_unlock(&mutex_block_entry);
     
-    pthread_mutex_lock(&mutex_blocare_iesire);
-        while (blocare_iesire)
-            //Daca iesirea este blocata, thread-ul asteapta pana cand se deblocheaza
-            pthread_cond_wait(&condvar_iesire, &mutex_blocare_iesire);
-        pthread_mutex_unlock(&mutex_blocare_iesire);
+    pthread_mutex_lock(&mutex_block_exit);
+    while (block_exit)
+        // If exit is blocked, the thread waits until it is unblocked
+        pthread_cond_wait(&condvar_exit, &mutex_block_exit);
+    pthread_mutex_unlock(&mutex_block_exit);
 
-    // Se asteapta permiterea intrarii in tunel ( nr_masini )
-    sem_wait(&semafor_intrare);
-    pthread_mutex_lock(&mutex_nr_m);
-    pthread_mutex_lock(&mutex_siguranta);
+    // Waits for permission to enter the tunnel (num_cars)
+    sem_wait(&sem_entry);
+    pthread_mutex_lock(&mutex_num_cars);
+    pthread_mutex_lock(&mutex_safety);
     
-    if (nr_masini < 5 && siguranta) {
-        nr_masini++;
-        printf("A intrat o masina: %d masini in tunel\n", nr_masini);
-        // Notifica 'monitorizarea' ca a intrat o masina in tunel
-        sem_post(&semafor_monitorizare);
+    if (num_cars < 5 && safety) {
+        num_cars++;
+        printf("A car has entered: %d cars in the tunnel\n", num_cars);
+        // Notify 'monitoring' that a car has entered the tunnel
+        sem_post(&sem_monitoring);
     }
-    pthread_mutex_unlock(&mutex_siguranta);
-    pthread_mutex_unlock(&mutex_nr_m);
-    // Notifica 'iesirea' ca a intrat o masina in tunel
-    sem_post(&semafor_iesire);
+    pthread_mutex_unlock(&mutex_safety);
+    pthread_mutex_unlock(&mutex_num_cars);
+    // Notify 'exit' that a car has entered the tunnel
+    sem_post(&sem_exit);
     return NULL;
 }
 
-//Thread-ul asociat task-ului iesire
-void *iesire(void *arg) {
+// Thread associated with the exit task
+void *exit(void *arg) {
     while (1) {
-        pthread_mutex_lock(&mutex_blocare_iesire);
-        while (blocare_iesire)
-            //Daca iesirea este blocata, thread-ul asteapta pana cand se deblocheaza
-            pthread_cond_wait(&condvar_iesire, &mutex_blocare_iesire);
-        pthread_mutex_unlock(&mutex_blocare_iesire);
-        // Se asteapta permiterea iesirii din tunel
-        sem_wait(&semafor_iesire);
-        pthread_mutex_lock(&mutex_nr_m);
-        if (nr_masini > 0) {
-            nr_masini--;
-            printf("A iesit o masina: %d masini in tunel\n", nr_masini);
-            //  Notifica 'monitorizarea' ca a iesit o masina din tunel
-            sem_post(&semafor_monitorizare);
-            if (nr_masini == 0) 
-            {  // Daca toate masinile au iesit din tunel
-               // transmite o notificare  thread-urilor care asteapta condvar_iesire
-                pthread_cond_broadcast(&condvar_iesire); 
+        pthread_mutex_lock(&mutex_block_exit);
+        while (block_exit)
+            // If exit is blocked, the thread waits until it is unblocked
+            pthread_cond_wait(&condvar_exit, &mutex_block_exit);
+        pthread_mutex_unlock(&mutex_block_exit);
+        // Waits for permission to exit the tunnel
+        sem_wait(&sem_exit);
+        pthread_mutex_lock(&mutex_num_cars);
+        if (num_cars > 0) {
+            num_cars--;
+            printf("A car has exited: %d cars in the tunnel\n", num_cars);
+            // Notify 'monitoring' that a car has exited the tunnel
+            sem_post(&sem_monitoring);
+            if (num_cars == 0) 
+            {  // If all cars have exited the tunnel
+               // broadcast a notification to threads waiting on condvar_exit
+                pthread_cond_broadcast(&condvar_exit); 
             }
         }
-        pthread_mutex_unlock(&mutex_nr_m);
-        // Notifica 'iesirea' ca a iesit o masina
-        // si ca e loc in tunel ca sa intre alta masina
-        sem_post(&semafor_intrare);
+        pthread_mutex_unlock(&mutex_num_cars);
+        // Notify 'exit' that a car has exited
+        // and there is space in the tunnel for another car to enter
+        sem_post(&sem_entry);
         sleep(3);
     }
     return NULL;
 }
 
-//Thread-ul asociat task-ului monitorizare
-void *monitorizare(void *arg) {
+// Thread associated with the monitoring task
+void *monitoring(void *arg) {
     while (1) {
-        // Asteapta sa intre/ iasa o masina 
-        sem_wait(&semafor_monitorizare);
-        pthread_mutex_lock(&mutex_nr_m);
-        if (nr_masini >= 5) {
-            printf("Limita de 5 masini atinsa! Intrare blocata.\n");
-            // Blocheaza intrarea masinilor
-            sem_wait(&semafor_intrare);
+        // Wait for a car to enter or exit
+        sem_wait(&sem_monitoring);
+        pthread_mutex_lock(&mutex_num_cars);
+        if (num_cars >= 5) {
+            printf("Limit of 5 cars reached! Entry blocked.\n");
+            // Block the entry of cars
+            sem_wait(&sem_entry);
         } else {
-            // Permite intrarea masinilor
-            sem_post(&semafor_intrare); 
+            // Allow the entry of cars
+            sem_post(&sem_entry); 
         }
-        pthread_mutex_unlock(&mutex_nr_m);
+        pthread_mutex_unlock(&mutex_num_cars);
     }
     return NULL;
 }
 
-//Thread-ul asociat task-ului fum
-void *fum(void *arg) {
+// Thread associated with the smoke task
+void *smoke(void *arg) {
     while (1) {
-        //Generare eveniment 
-        int detectare_fum = rand() % 10;
-        pthread_mutex_lock(&mutex_siguranta);
-        if (detectare_fum < 1 && siguranta) {
-            siguranta = 0;
-            printf("Fum detectat! Intrare blocata.\n");
-            //Blocheaza intrarea masinilor
-            sem_wait(&semafor_intrare);
-            // Deblocare iesire daca este blocata
-            pthread_mutex_lock(&mutex_blocare_iesire);
-            if (blocare_iesire) {
-                blocare_iesire = 0;
-                pthread_cond_broadcast(&condvar_iesire);
-                printf("Iesirea deblocata.\n");
+        // Generate event
+        int smoke_detected = rand() % 10;
+        pthread_mutex_lock(&mutex_safety);
+        if (smoke_detected < 1 && safety) {
+            safety = 0;
+            printf("Smoke detected! Entry blocked.\n");
+            // Block the entry of cars
+            sem_wait(&sem_entry);
+            // Unblock exit if it is blocked
+            pthread_mutex_lock(&mutex_block_exit);
+            if (block_exit) {
+                block_exit = 0;
+                pthread_cond_broadcast(&condvar_exit);
+                printf("Exit unblocked.\n");
             }
-            pthread_mutex_unlock(&mutex_blocare_iesire);
-        } else if (!gaz_detectat && !siguranta) {
-            siguranta = 1;
-            printf("Nu se mai detecteaza fum. Intrare deblocata.\n");
-            // Permite intrarea masinilor
-            sem_post(&semafor_intrare);
+            pthread_mutex_unlock(&mutex_block_exit);
+        } else if (!gas_detected && !safety) {
+            safety = 1;
+            printf("No more smoke detected. Entry unblocked.\n");
+            // Allow the entry of cars
+            sem_post(&sem_entry);
         }
-        pthread_mutex_unlock(&mutex_siguranta);
+        pthread_mutex_unlock(&mutex_safety);
         sleep(1);
     }
 }
 
-//Thread-ul asociat task-ului gaz
-void *gaz(void *arg) {
+// Thread associated with the gas task
+void *gas(void *arg) {
     while (1) {
-        //Generare eveniment 
-        int detectare_gaz = rand() % 10;
-        pthread_mutex_lock(&mutex_siguranta);
-        if (detectare_gaz < 1 && !gaz_detectat) {
-            gaz_detectat = 1;
-            siguranta = 0;
-            printf("Gaz detectat! Intrare blocata.\n");
-            //Blocheaza intrarea masinilor
-            sem_wait(&semafor_intrare);
-            
-            // Deblocare iesire daca este blocata
-            pthread_mutex_lock(&mutex_blocare_iesire);
-            if (blocare_iesire) {
-                blocare_iesire = 0;
-                pthread_cond_broadcast(&condvar_iesire);
-                printf("Iesirea deblocata.\n");
+        // Generate event
+        int gas_detection = rand() % 10;
+        pthread_mutex_lock(&mutex_safety);
+        if (gas_detection < 1 && !gas_detected) {
+            gas_detected = 1;
+            safety = 0;
+            printf("Gas detected! Entry blocked.\n");
+            // Block the entry of cars
+            sem_wait(&sem_entry);
+
+            // Unblock exit if it is blocked
+            pthread_mutex_lock(&mutex_block_exit);
+            if (block_exit) {
+                block_exit = 0;
+                pthread_cond_broadcast(&condvar_exit);
+                printf("Exit unblocked.\n");
             }
-            pthread_mutex_unlock(&mutex_blocare_iesire);
-        } else if (gaz_detectat) {
-            gaz_detectat = 0;
-            if (siguranta == 0) {
-                siguranta = 1;
-                printf("Nu se mai detecteaza gaz. Intrare deblocata\n");
-                // Permite intrarea masinilor
-                sem_post(&semafor_intrare);
+            pthread_mutex_unlock(&mutex_block_exit);
+        } else if (gas_detected) {
+            gas_detected = 0;
+            if (safety == 0) {
+                safety = 1;
+                printf("No more gas detected. Entry unblocked.\n");
+                // Allow the entry of cars
+                sem_post(&sem_entry);
             }
         }
-        pthread_mutex_unlock(&mutex_siguranta);
+        pthread_mutex_unlock(&mutex_safety);
         sleep(1);
     }
 }
 
-//Thread-ul asociat task-ului buton_panica
-void *buton_de_panica(void *arg) {
+// Thread associated with the panic button task
+void *panic_button(void *arg) {
     clock_t start_time = clock();
-    // Intervalul de timp la care se apasa butonul de panica
+    // The time interval at which the panic button is pressed
     int interval = 60000;
 
     while (1) {
         clock_t current_time = clock();
-        // Verifica daca a expirat timpul si daca sunt masini in tunel
-        if (((double)(current_time - start_time) / CLOCKS_PER_SEC) * 1000 >= interval && nr_masini >0) {
-            // Blocheaza intrarea 
-            pthread_mutex_lock(&mutex_blocare_intrare);
-            blocare_intrare = 1;
-            printf("Buton de panică a fost apasat. Intrare blocata.\n");
-            pthread_mutex_unlock(&mutex_blocare_intrare);
+        // Check if the time has expired and if there are cars in the tunnel
+        if (((double)(current_time - start_time) / CLOCKS_PER_SEC) * 1000 >= interval && num_cars > 0) {
+            // Block entry
+            pthread_mutex_lock(&mutex_block_entry);
+            block_entry = 1;
+            printf("Panic button pressed. Entry blocked.\n");
+            pthread_mutex_unlock(&mutex_block_entry);
 
-            // Deblocare iesire daca este blocata
-            pthread_mutex_lock(&mutex_blocare_iesire);
-            if (blocare_iesire) {
-                blocare_iesire = 0;
-                pthread_cond_broadcast(&condvar_iesire);
-                printf("Iesirea deblocata.\n");
+            // Unblock exit if it is blocked
+            pthread_mutex_lock(&mutex_block_exit);
+            if (block_exit) {
+                block_exit = 0;
+                pthread_cond_broadcast(&condvar_exit);
+                printf("Exit unblocked.\n");
             }
-            pthread_mutex_unlock(&mutex_blocare_iesire);
+            pthread_mutex_unlock(&mutex_block_exit);
 
-            pthread_mutex_lock(&mutex_nr_m);
-            while (nr_masini > 0) {
-                // Deblocare iesire
-                pthread_cond_wait(&condvar_iesire, &mutex_nr_m);
+            pthread_mutex_lock(&mutex_num_cars);
+            while (num_cars > 0) {
+                // Unblock exit
+                pthread_cond_wait(&condvar_exit, &mutex_num_cars);
             }
-            printf("Toate masinile au iesit din tunel.\n");
-            pthread_mutex_unlock(&mutex_nr_m);
+            printf("All cars have exited the tunnel.\n");
+            pthread_mutex_unlock(&mutex_num_cars);
 
-            // Resetare timer
+            // Reset timer
             start_time = clock();
-            // Deblocare intrare
-            pthread_mutex_lock(&mutex_blocare_intrare);
-            blocare_intrare = 0;
-            pthread_mutex_unlock(&mutex_blocare_intrare);
+            // Unblock entry
+            pthread_mutex_lock(&mutex_block_entry);
+            block_entry = 0;
+            pthread_mutex_unlock(&mutex_block_entry);
         }
     }
 }
 
 int main() {
-    srand(time(NULL));
+    srand(time(NULL)); // Initialize random seed
 
-    // Declarare si initializare thread-uri
-    pthread_t senzor_iesire, thread_monitorizare, senzor_intrare, thread_fum, thread_gaz, thread_buton;
-    pthread_mutex_init(&mutex_nr_m, NULL);
-    pthread_mutex_init(&mutex_siguranta, NULL);
-    pthread_mutex_init(&mutex_blocare_intrare, NULL);
-    pthread_mutex_init(&mutex_blocare_iesire, NULL);
+    // Declare and initialize threads
+    pthread_t exit_sensor, monitoring_thread, entry_sensor, smoke_thread, gas_thread, panic_button_thread;
+    pthread_mutex_init(&mutex_num_cars, NULL);
+    pthread_mutex_init(&mutex_safety, NULL);
+    pthread_mutex_init(&mutex_block_entry, NULL);
+    pthread_mutex_init(&mutex_block_exit, NULL);
     
-    // Initializare variabile conditionale
-    pthread_cond_init(&condvar_intrare, NULL);
-    pthread_cond_init(&condvar_iesire, NULL);
+    // Initialize condition variables
+    pthread_cond_init(&condvar_entry, NULL);
+    pthread_cond_init(&condvar_exit, NULL);
 
-    // Initializare semafoare
-    if( sem_init(&semafor_intrare, 0, 5) == -1 ){
-        printf("Eroare la initializare: ");
+    // Initialize semaphores
+    if(sem_init(&sem_entry, 0, 5) == -1){
+        printf("Error in initialization: ");
     }
 
-    if( sem_init(&semafor_iesire, 0, 0) == -1 ){
-        printf("Eroare la initializare: ");
+    if(sem_init(&sem_exit, 0, 0) == -1){
+        printf("Error in initialization: ");
     }
 
-    if( sem_init(&semafor_monitorizare, 0, 0) == -1 ){
-        printf("Eroare la initializare: ");
+    if(sem_init(&sem_monitoring, 0, 0) == -1){
+        printf("Error in initialization: ");
     }
 
-    pthread_create(&thread_buton, NULL, buton_de_panica, NULL);
-    pthread_create(&thread_fum, NULL, fum, NULL);
-    pthread_create(&thread_gaz, NULL, gaz, NULL);
-    pthread_create(&senzor_iesire, NULL, iesire, NULL);
-    pthread_create(&thread_monitorizare, NULL, monitorizare, NULL);
+    // Create threads for each task
+    pthread_create(&panic_button_thread, NULL, panic_button, NULL);
+    pthread_create(&smoke_thread, NULL, smoke, NULL);
+    pthread_create(&gas_thread, NULL, gas, NULL);
+    pthread_create(&exit_sensor, NULL, exit, NULL);
+    pthread_create(&monitoring_thread, NULL, monitoring, NULL);
 
-    printf("Apasa 1 pentru a intra o masina, 2 pentru a bloca/debloca intrarea, 3 pentru a bloca/debloca iesirea.\n");
+    printf("Press 1 to let a car enter, 2 to block/unblock entry, 3 to block/unblock exit.\n");
     int option;
     while (1) {
         scanf("%d", &option);
         if (option == 1) {
-            pthread_create(&senzor_intrare, NULL, intrare, NULL);
-            pthread_detach(senzor_intrare);
-        }else if (option == 2) {
-            pthread_mutex_lock(&mutex_blocare_intrare);
-            blocare_intrare = !blocare_intrare;
-            if (blocare_intrare) {
-                printf("Intrarea a fost blocata.\n");
-                
+            // Create and detach entry sensor thread each time option 1 is chosen
+            pthread_create(&entry_sensor, NULL, entry, NULL);
+            pthread_detach(entry_sensor);
+        } else if (option == 2) {
+            pthread_mutex_lock(&mutex_block_entry);
+            block_entry = !block_entry;
+            if (block_entry) {
+                printf("Entry has been blocked.\n");
             } else {
-                printf("Intrarea a fost deblocata.\n");
-                pthread_cond_broadcast(&condvar_intrare);
+                printf("Entry has been unblocked.\n");
+                pthread_cond_broadcast(&condvar_entry);
             }
-            pthread_mutex_unlock(&mutex_blocare_intrare);
+            pthread_mutex_unlock(&mutex_block_entry);
         } else if (option == 3) {
-            pthread_mutex_lock(&mutex_blocare_iesire);
-            blocare_iesire = !blocare_iesire;
-            if (blocare_iesire) {
-                printf("Iesirea a fost blocata.\n");
+            pthread_mutex_lock(&mutex_block_exit);
+            block_exit = !block_exit;
+            if (block_exit) {
+                printf("Exit has been blocked.\n");
             } else {
-                printf("Iesirea a fost deblocata.\n");
-                pthread_cond_broadcast(&condvar_iesire);
+                printf("Exit has been unblocked.\n");
+                pthread_cond_broadcast(&condvar_exit);
             }
-            pthread_mutex_unlock(&mutex_blocare_iesire);
+            pthread_mutex_unlock(&mutex_block_exit);
         }
     }
     
-    pthread_join(senzor_iesire, NULL);
-    pthread_join(thread_monitorizare, NULL);
-    pthread_join(thread_fum, NULL);
-    pthread_join(thread_gaz, NULL);
+    // Join threads to ensure all are completed before terminating
+    pthread_join(exit_sensor, NULL);
+    pthread_join(monitoring_thread, NULL);
+    pthread_join(smoke_thread, NULL);
+    pthread_join(gas_thread, NULL);
 
-    sem_destroy(&semafor_intrare);
-    sem_destroy(&semafor_iesire);
-    sem_destroy(&semafor_monitorizare);
+    // Clean up semaphores
+    sem_destroy(&sem_entry);
+    sem_destroy(&sem_exit);
+    sem_destroy(&sem_monitoring);
 
-    pthread_mutex_destroy(&mutex_nr_m);
-    pthread_mutex_destroy(&mutex_siguranta);
-    pthread_mutex_destroy(&mutex_blocare_intrare);
-    pthread_mutex_destroy(&mutex_blocare_iesire);
+    // Destroy mutexes
+    pthread_mutex_destroy(&mutex_num_cars);
+    pthread_mutex_destroy(&mutex_safety);
+    pthread_mutex_destroy(&mutex_block_entry);
+    pthread_mutex_destroy(&mutex_block_exit);
 }
-
