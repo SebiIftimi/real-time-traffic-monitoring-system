@@ -13,20 +13,16 @@ variables.
 2. The tunnel is equipped with entry and exit sensors, natural gas leak detectors, smoke detectors, and a panic button. Both the entrance and exit of the tunnel can be locked or unlocked by the tunnel operator.
 
 3. Conditions for the proper operation of the tunnel:
-    - When the number of vehicles inside the tunnel reaches five, the entrance to the tunnel will be blocked. Entry will be permitted again once the number of vehicles inside the tunnel drops below five.
+    - When the number of vehicles inside the tunnel reaches five, the entrance to the tunnel will be blocked. 
     - If the gas/smoke sensors detect any gas or smoke inside the tunnel, or if the panic button is activated, the tunnel entrance will be immediately blocked.
     - If the tunnel operator blocks the exit, the entrance will also be blocked.
 
-4. To monitor the number of vehicles inside the tunnel, this number is constantly checked.
-
-5. Gas and smoke sensors are also continually monitored to prevent gas leaks and fires. If the gas/smoke sensors are triggered, the entrance to the tunnel will be blocked, and the exit will be unblocked (if it was previously locked). The entrance will be unblocked once gas or smoke is no longer detected inside the tunnel.
-
-6. If the panic button is pressed, vehicles will be directed to exit the tunnel, and the entrance will be blocked.
+4. If the panic button is pressed, vehicles will be directed to exit the tunnel, and the entrance will be blocked.
 
 
 # Aplication Architecture
 
-The application is divided into several tasks corresponding to the different entities that interact and perform specific operations. In this implementation, tasks are akin to execution threads. The tasks within the application include:
+ In this implementation, tasks are akin to execution threads. The tasks within the application include:
 
 1. Main Task:
    - Initialization: Sets up the semaphores used and creates threads for Entry, Exit, Monitoring, Smoke, Gas, and the Panic Button. After initialization, it waits for the user to enter commands via the keyboard: '1' to allow a vehicle into the tunnel, '2' to lock/unlock the entrance, and '3' to lock/unlock the exit.
